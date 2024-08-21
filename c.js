@@ -11,12 +11,6 @@ if (!fs.existsSync(downloadFolder)) {
   fs.mkdirSync(downloadFolder);
 }
 
-const sanitizeUrl = (url) => {
-  const urlObj = new URL(url);
-  urlObj.search = ''; // Remove todos os parâmetros de query
-  return urlObj.toString();
-};
-
 const downloadYouTube = async (url) => {
   try {
     if (!ytdl.validateURL(url)) {
@@ -24,72 +18,66 @@ const downloadYouTube = async (url) => {
     }
 
     const info = await ytdl.getInfo(url);
-    const finalOutput = path.join(downloadFolder, `${info.videoDetails.title}.mp3`);
+    const tempAudioPath = path.join(downloadFolder, `${info.videoDetails.title}.tmp`);
+    const finalOutput = path.join(downloadFolder, `${info.videoDetails.title}.wav`);
 
-    const audioStream = ytdl(url, {
-      filter: 'audioonly'
+    const audioStream = ytdl(url, { filter: 'audioonly' });
+    const tempAudioStream = fs.createWriteStream(tempAudioPath);
+
+    audioStream.pipe(tempAudioStream);
+
+    tempAudioStream.on('finish', () => {
+      ffmpeg(tempAudioPath)
+        .audioCodec('pcm_s16le') // Codec para WAV
+        .toFormat('wav') // Define o formato de saída como WAV
+        .on('end', () => {
+          fs.unlinkSync(tempAudioPath); // Remove o arquivo temporário
+          console.log(`Download e conversão concluídos: ${finalOutput}`);
+        })
+        .on('error', (err) => {
+          console.error(`Erro ao converter o arquivo: ${err.message}`);
+        })
+        .save(finalOutput);
     });
 
-    audioStream.on('error', (err) => {
-      console.error(`Erro ao obter o stream de áudio do YouTube: ${err.message}`);
+    tempAudioStream.on('error', (err) => {
+      console.error(`Erro ao salvar o áudio temporário: ${err.message}`);
     });
-
-    ffmpeg()
-      .input(audioStream)
-      .audioCodec('libmp3lame')
-      .audioBitrate(320)
-      .toFormat('mp3')
-      .on('end', () => {
-        console.log(`Download e conversão concluídos: ${finalOutput}`);
-      })
-      .on('error', (err) => {
-        console.error(`Erro ao converter o arquivo: ${err.message}`);
-      })
-      .pipe(fs.createWriteStream(finalOutput), { end: true });
 
   } catch (err) {
     console.error(`Erro ao processar o vídeo: ${err.message}`);
   }
 };
 
-const downloadSpotify = (url) => {
-  return new Promise((resolve, reject) => {
-    const outputPath = path.join(downloadFolder);
-    exec(`spotdl --output "${outputPath}" "${url}"`, (error, stdout, stderr) => {
-      if (error) {
-        reject(`Erro ao baixar a música do Spotify: ${error.message}`);
-        return;
-      }
-      if (stderr) {
-        reject(`Erro: ${stderr}`);
-        return;
-      }
-      console.log(`Download concluído: ${stdout}`);
-      resolve();
-    });
-  });
-};
-
 const downloadSoundCloud = async (url) => {
   try {
     await SoundCloud.connect(); // Conecta-se ao SoundCloud para obter o clientId
     const track = await SoundCloud.tracks.getTrack(url);
-    const finalOutput = path.join(downloadFolder, `${track.title}.mp3`);
+    const tempAudioPath = path.join(downloadFolder, `${track.title}.tmp`);
+    const finalOutput = path.join(downloadFolder, `${track.title}.wav`);
 
     const audioStream = await SoundCloud.download(url);
+    const tempAudioStream = fs.createWriteStream(tempAudioPath);
 
-    ffmpeg()
-      .input(audioStream)
-      .audioCodec('libmp3lame')
-      .audioBitrate(320)
-      .toFormat('mp3')
-      .on('end', () => {
-        console.log(`Download e conversão concluídos: ${finalOutput}`);
-      })
-      .on('error', (err) => {
-        console.error(`Erro ao converter o arquivo: ${err.message}`);
-      })
-      .pipe(fs.createWriteStream(finalOutput), { end: true });
+    audioStream.pipe(tempAudioStream);
+
+    tempAudioStream.on('finish', () => {
+      ffmpeg(tempAudioPath)
+        .audioCodec('pcm_s16le') // Codec para WAV
+        .toFormat('wav') // Define o formato de saída como WAV
+        .on('end', () => {
+          fs.unlinkSync(tempAudioPath); // Remove o arquivo temporário
+          console.log(`Download e conversão concluídos: ${finalOutput}`);
+        })
+        .on('error', (err) => {
+          console.error(`Erro ao converter o arquivo: ${err.message}`);
+        })
+        .save(finalOutput);
+    });
+
+    tempAudioStream.on('error', (err) => {
+      console.error(`Erro ao salvar o áudio temporário: ${err.message}`);
+    });
 
   } catch (err) {
     console.error(`Erro ao processar URL do SoundCloud: ${err.message}`);
