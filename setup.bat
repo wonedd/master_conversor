@@ -7,7 +7,7 @@ set FFMPG_URL=https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
 set PYTHON_URL=https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe
 
 :: Diretório de instalação
-set INSTALL_DIR=%~dp0\tools
+set INSTALL_DIR=%~dp0tools
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
 
 :: Instalar Node.js
@@ -19,7 +19,9 @@ start /wait msiexec /i "%INSTALL_DIR%\nodejs.msi" /quiet /norestart
 echo Instalando FFmpeg...
 curl -L %FFMPG_URL% -o "%INSTALL_DIR%\ffmpeg.zip"
 powershell -Command "Expand-Archive -Path '%INSTALL_DIR%\ffmpeg.zip' -DestinationPath '%INSTALL_DIR%'"
-setx PATH "%PATH%;%INSTALL_DIR%\ffmpeg-release-essentials\bin"
+set FFMPG_DIR=%INSTALL_DIR%\ffmpeg-release-essentials\bin
+setx PATH "%PATH%;%FFMPG_DIR%"
+echo FFmpeg instalado com sucesso.
 
 :: Instalar Python
 echo Instalando Python...
@@ -42,7 +44,9 @@ if exist package.json (
 
 :: Adicionar variáveis de ambiente ao PATH
 echo Adicionando variáveis de ambiente...
-setx PATH "%PATH%;%INSTALL_DIR%\ffmpeg-release-essentials\bin;C:\Program Files\Python312;C:\Program Files\Python312\Scripts;%~dp0"
+set PYTHON_DIR=C:\Program Files\Python312
+set SCRIPT_DIR=%~dp0
+setx PATH "%PATH%;%FFMPG_DIR%;%PYTHON_DIR%;%PYTHON_DIR%\Scripts;%SCRIPT_DIR%"
 
 :: Criar o script run.bat
 echo Criando o script run.bat...
